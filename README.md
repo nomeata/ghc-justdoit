@@ -1,4 +1,4 @@
-ghc-justdoit: a to write the code for you
+ghc-justdoit: a ghc plugin to write the code for you
 =========================================
 
 Longer README will follow.
