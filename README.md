@@ -32,6 +32,7 @@ Related work
  * [Djinn](http://hackage.haskell.org/package/djinn) and [djinn-ghc](http://hackage.haskell.org/package/djinn-ghc)
  * [exference](http://hackage.haskell.org/package/exference)
  * [curryhoward](https://github.com/Chymyst/curryhoward) for Scala
+ * [hezarfen](https://github.com/joom/hezarfen) for Idris
 
 Contact
 -------
