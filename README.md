@@ -1,7 +1,8 @@
-ghc-justdoit: a ghc plugin to write the code for you
+ghc-justdoit: a GHC plugin to write the code for you
 =========================================
 
-Longer README will follow.
+This is a prototype of a code synthesis plugin for GHC, which uses LJT proof
+search to instantiate a type.
 
 Synopsis
 --------
@@ -13,6 +14,17 @@ Synopsis
 
     foo :: ((a -> r) -> r) -> (a -> ((b -> r) -> r)) -> ((b -> r) -> r)
     foo = (…)
+
+Missing bits
+------------
+
+ * The LJT might not be complete, due to insufficient backtracking.
+ * The implementation is very much unoptimized.
+ * It returns one solution, but not necessary the “best” one. But what is the “best” one?
+ * It ignores any recursive type, so it cannot do anything with lists. It would be much more useful if it could do some best-effort thing her as well.
+
+If someone wants to pick it up from here, that’d be great!
+
 
 Related work
 ------------
