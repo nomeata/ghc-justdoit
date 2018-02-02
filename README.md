@@ -14,6 +14,10 @@ Synopsis
     foo :: ((a -> r) -> r) -> (a -> ((b -> r) -> r)) -> ((b -> r) -> r)
     foo = (…)
 
+Known bugs
+----------
+
+ * Can go into an infinite loop when recursive types are around.
 
 Related work
 ------------
