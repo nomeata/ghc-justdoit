@@ -24,11 +24,6 @@ ljt ::  Type -> [CoreExpr]
 ljt t = [] ==> t
 
 
-newVar :: Type -> Id
-newVar ty = mkSysLocal (mkFastString "x") (mkBuiltinUnique i) ty
-  where i = hash (showSDocUnsafe (ppr ty))
-
-
 (==>) :: [Id] -> Type -> [CoreExpr]
 
 -- Rule Axiom
@@ -104,7 +99,14 @@ _ante ==> _goal
     = -- pprTrace "go" (vcat [ ppr (idType v) | v <- ante] $$ text "------" $$ ppr goal) $
       mzero
 
--- A typed lambda
+-- Smart constructors
+
+newVar :: Type -> Id
+newVar ty = mkSysLocal (mkFastString "x") (mkBuiltinUnique i) ty
+  where i = hash (showSDocUnsafe (ppr ty))
+  -- We don’t mind if variables with equal types shadow each other,
+  -- so let’s just derive the unique from the type
+
 lam :: Type -> (Id -> CoreExpr) -> CoreExpr
 lam ty gen = Lam v $ gen v
   where v = newVar ty
@@ -125,6 +127,8 @@ letsA :: Applicative f => [CoreExpr] -> ([Id] -> f CoreExpr) -> f CoreExpr
 letsA es gen = mkLets (zipWith NonRec vs es) <$> gen vs
   where vs = map (newVar . exprType) es
 
+-- Predicate on types
+
 isProdType :: Type -> Maybe ([Type], [CoreExpr] -> CoreExpr, CoreExpr -> [Id] -> CoreExpr -> CoreExpr)
 isProdType ty
     | Just (_, _, dc, repargs) <- splitDataProductType_maybe ty
@@ -134,7 +138,8 @@ isProdType ty
            )
 isProdType _ = Nothing
 
--- Haskell sum constructors can have multiple parameters. For our purposes, if so, we wrap them in a product.
+-- Haskell sum constructors can have multiple parameters. For our purposes, if
+-- so, we wrap them in a product.
 isSumType :: Type -> Maybe ([Type], [CoreExpr -> CoreExpr], CoreExpr -> [Id] -> [CoreExpr] -> CoreExpr)
 isSumType ty
     | Just (tycon, ty_args) <- splitTyConApp_maybe ty
@@ -153,6 +158,8 @@ isSumType ty
             | (dc,v,rhs) <- zip3 dcs vs alts ]
       in Just (tys, injs, destruct)
 isSumType _ = Nothing
+
+-- Combinators to search for matching things
 
 funLeft :: (Type -> Maybe a) -> Type -> Maybe (a,Type)
 funLeft p (FunTy t1 t2) = (\x -> (x,t2)) <$> p t1
