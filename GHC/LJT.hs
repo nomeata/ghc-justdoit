@@ -27,13 +27,12 @@ ljt t = [] ==> t
 (==>) :: [Id] -> Type -> [CoreExpr]
 
 -- Rule Axiom
--- (TODO: Why restrict to atoms?)
+-- (TODO: The official algorithm restricts this rule to atoms. Why?)
 ante ==> goal
     | Just v <- find (\v -> idType v `eqType` goal) ante
     = pure $ Var v
 
 -- Rule f⇒
--- (TODO: Why restrict to atoms?)
 ante ==> goal
     | Just v <- find (\v -> isEmptyTy (idType v)) ante
     = pure $ mkWildCase (Var v) (idType v) goal []
@@ -76,6 +75,7 @@ ante ==> FunTy t1 t2
     v = newVar t1
 
 -- Rule →⇒1
+-- (TODO: The official algorithm restricts this rule to atoms. Why?)
 ante ==> goal
     | let isInAnte a = find (\v -> idType v `eqType` a) ante
     , Just ((vAB, (vA,_)), ante') <- anyA (funLeft isInAnte) ante
