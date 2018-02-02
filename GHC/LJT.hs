@@ -5,15 +5,19 @@ import FastString
 import Unique
 import Type
 import Id
+import Var
 import CoreSyn
 import Outputable
 import TyCoRep
 import TyCon
 import DataCon
 import MkCore
+import MkId
 import CoreUtils
 import TysWiredIn
 import BasicTypes
+import NameEnv
+import NameSet
 
 import Data.List
 import Data.Hashable
@@ -131,10 +135,20 @@ letsA es gen = mkLets (zipWith NonRec vs es) <$> gen vs
 
 isProdType :: Type -> Maybe ([Type], [CoreExpr] -> CoreExpr, CoreExpr -> [Id] -> CoreExpr -> CoreExpr)
 isProdType ty
-    | Just (_, _, dc, repargs) <- splitDataProductType_maybe ty
+    | Just (tc, _, dc, repargs) <- splitDataProductType_maybe ty
+    , not (isRecTyCon tc)
     = Just ( repargs
            , \args -> mkConApp dc (map Type repargs ++ args)
            , \scrut pats rhs -> mkWildCase scrut ty (exprType rhs) [(DataAlt dc, pats, rhs)]
+           )
+    | Just (tc, ty_args) <- splitTyConApp_maybe ty
+    , Just dc <- newTyConDataCon_maybe tc
+    , not (isRecTyCon tc)
+    , let repargs = dataConInstArgTys dc ty_args
+    = Just ( repargs
+           , \[arg] -> wrapNewTypeBody tc ty_args arg
+           , \scrut [pat] rhs ->
+                mkLetNonRec pat (unwrapNewTypeBody tc ty_args scrut) rhs
            )
 isProdType _ = Nothing
 
@@ -142,8 +156,9 @@ isProdType _ = Nothing
 -- so, we wrap them in a product.
 isSumType :: Type -> Maybe ([Type], [CoreExpr -> CoreExpr], CoreExpr -> [Id] -> [CoreExpr] -> CoreExpr)
 isSumType ty
-    | Just (tycon, ty_args) <- splitTyConApp_maybe ty
-    , Just dcs <- isDataSumTyCon_maybe tycon
+    | Just (tc, ty_args) <- splitTyConApp_maybe ty
+    , Just dcs <- isDataSumTyCon_maybe tc
+    , not (isRecTyCon tc)
     = let tys = [ mkTupleTy Boxed (dataConInstArgTys dc ty_args) | dc <- dcs ]
           injs = [
             let vtys = dataConInstArgTys dc ty_args
@@ -158,6 +173,40 @@ isSumType ty
             | (dc,v,rhs) <- zip3 dcs vs alts ]
       in Just (tys, injs, destruct)
 isSumType _ = Nothing
+
+-- We don’t want to look into recursive type cons.
+-- Which ones are recursive? Surely those that get mentioned in their
+-- arguments. Or in type cons in their arguments.
+-- But that is not enough, because of higher kinded arguments. So prohibit
+-- those as well.
+
+isRecTyCon :: TyCon -> Bool
+isRecTyCon tc = go emptyNameSet tc
+  where
+    go seen tc | tyConName tc `elemNameSet` seen = True
+               | any isHigherKind paramKinds     = False
+               | any (go seen') mentionedTyCons  = True
+               | otherwise                       = False
+      where mentionedTyCons = concatMap getTyCons $ concatMap dataConOrigArgTys $ tyConDataCons tc
+            paramKinds = map varType (tyConTyVars tc)
+            seen' = seen `extendNameSet` tyConName tc
+
+    isHigherKind :: Kind -> Bool
+    isHigherKind k = not (k `eqType` liftedTypeKind)
+
+    getTyCons :: Type -> [TyCon]
+    getTyCons = nameEnvElts . go
+      where
+        go (TyConApp tc tys) = unitNameEnv (tyConName tc) tc `plusNameEnv` go_s tys
+        go (LitTy _)         = emptyNameEnv
+        go (TyVarTy _)       = emptyNameEnv
+        go (AppTy a b)       = go a `plusNameEnv` go b
+        go (FunTy a b)       = go a `plusNameEnv` go b
+        go (ForAllTy _ ty)   = go ty
+        go (CastTy ty _)     = go ty
+        go (CoercionTy co)   = emptyNameEnv
+        go_s = foldr (plusNameEnv . go) emptyNameEnv
+
 
 -- Combinators to search for matching things
 

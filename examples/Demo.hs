@@ -60,6 +60,11 @@ absurd = (…)
 convert :: MyLargeSum a b c d e -> Either a (Either b (Either c (Either d e)))
 convert = (…)
 
+newtype Id a = Id a
+
+mapId :: (a -> b) -> Id a -> Id b
+mapId = (…)
+
 -- Just for comparison, here are the implementations that you might write by
 -- hand
 
@@ -81,6 +86,7 @@ swapEitherCont' ca k = ca $ \case Left a -> k (Right a)
                                   Right a -> k (Left a)
 absurd' :: Void -> a
 absurd' = \case{}
+mapId' f (Id x) = Id (f x)
 
 -- And here we use inspection-testing to check that these are indeed the
 -- definitions that GHC.JustDoIt created for us.
@@ -98,6 +104,7 @@ inspect $ 'contBind === 'contBind'
 inspect $ 'swapEither === 'swapEither'
 inspect $ 'swapEitherCont === 'swapEitherCont'
 inspect $ 'absurd === 'absurd'
+inspect $ 'mapId === 'mapId'
 
 main :: IO ()
 main = putStrLn "☺"
