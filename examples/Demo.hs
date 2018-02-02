@@ -4,13 +4,14 @@
 import GHC.JustDoIt
 import Test.Inspection
 
-import Prelude hiding (id, const, curry)
+import Prelude hiding (id, flip, const, curry)
 
 -- Some auxillary definitions
 
 data Unit = Unit
 data Void
 data MyLargeSum a b c d e = MkA a | MkB b | MkC c | MkD d | MkE e
+newtype Id a = Id a
 
 -- All these functions have basically one sensible implementation.
 -- With GHC.JustDoIt, we don’t have to write them.
@@ -20,6 +21,9 @@ id = justDoIt
 
 const :: a -> b -> a
 const = (…)
+
+flip :: (a -> b -> c) -> (b -> a -> c)
+flip = (…)
 
 dup :: a -> (a,a)
 dup = (…)
@@ -36,8 +40,8 @@ proj = (…)
 curry :: ((a,b) -> c) -> a -> b -> c
 curry = (…)
 
-curry2 :: ((a,b) -> c) -> b -> a -> c
-curry2 = (…)
+curryFlip :: ((a,b) -> c) -> b -> a -> c
+curryFlip = (…)
 
 contBind :: ((a -> r) -> r) -> (a -> ((b -> r) -> r)) -> ((b -> r) -> r)
 contBind = (…)
@@ -60,8 +64,6 @@ absurd = (…)
 convert :: MyLargeSum a b c d e -> Either a (Either b (Either c (Either d e)))
 convert = (…)
 
-newtype Id a = Id a
-
 mapId :: (a -> b) -> Id a -> Id b
 mapId = (…)
 
@@ -70,12 +72,13 @@ mapId = (…)
 
 id' x = x
 const' x _= x
+flip' f a b = f b a
 dup' x = (x,x)
 pair' x y = (x,y)
 tripl' x y z = (x,y,z)
 proj' (_,_,c,_) = c
 curry' f a b = f (a,b)
-curry2' f a b = f (b,a)
+curryFlip' f a b = f (b,a)
 unit' = Unit
 contBind' :: ((a -> r) -> r) -> (a -> ((b -> r) -> r)) -> ((b -> r) -> r)
 contBind' ca cb k = ca (\a -> cb a k)
@@ -91,20 +94,21 @@ mapId' f (Id x) = Id (f x)
 -- And here we use inspection-testing to check that these are indeed the
 -- definitions that GHC.JustDoIt created for us.
 
-inspect $ 'id === 'id'
-inspect $ 'const === 'const'
-inspect $ 'dup === 'dup'
-inspect $ 'pair === 'pair'
-inspect $ 'tripl === 'tripl'
-inspect $ 'proj === 'proj'
-inspect $ 'curry === 'curry'
-inspect $ 'curry2 === 'curry2'
-inspect $ 'unit === 'unit'
-inspect $ 'contBind === 'contBind'
-inspect $ 'swapEither === 'swapEither'
+inspect $ 'id             === 'id'
+inspect $ 'const          === 'const'
+inspect $ 'flip           === 'flip'
+inspect $ 'dup            === 'dup'
+inspect $ 'pair           === 'pair'
+inspect $ 'tripl          === 'tripl'
+inspect $ 'proj           === 'proj'
+inspect $ 'curry          === 'curry'
+inspect $ 'curryFlip      === 'curryFlip'
+inspect $ 'unit           === 'unit'
+inspect $ 'contBind       === 'contBind'
+inspect $ 'swapEither     === 'swapEither'
 inspect $ 'swapEitherCont === 'swapEitherCont'
-inspect $ 'absurd === 'absurd'
-inspect $ 'mapId === 'mapId'
+inspect $ 'absurd         === 'absurd'
+inspect $ 'mapId          === 'mapId'
 
 main :: IO ()
 main = putStrLn "☺"
