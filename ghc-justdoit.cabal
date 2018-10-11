@@ -1,5 +1,5 @@
 name:                ghc-justdoit
-version:             0.1
+version:             0.1.0.1
 synopsis:            A magic typeclass that just does it
 description:
     This plugin allows you to write

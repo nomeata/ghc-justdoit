@@ -40,7 +40,7 @@ Contact
 Please reports bugs and missing features at the [GitHub bugtracker]. This is
 also where you can find the [source code].
 
-`bSpokeLight` was written by [Joachim Breitner] and is licensed under a
+`ghc-justdoit` was written by [Joachim Breitner] and is licensed under a
 permissive MIT [license].
 
 [GitHub bugtracker]: https://github.com/nomeata/ghc-justdoit/issues
