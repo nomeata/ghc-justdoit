@@ -21,7 +21,7 @@ Missing bits
  * The LJT might not be complete, due to insufficient backtracking.
  * The implementation is very much unoptimized.
  * It returns one solution, but not necessary the “best” one. But what is the “best” one?
- * It ignores any recursive type, so it cannot do anything with lists. It would be much more useful if it could do some best-effort thing her as well.
+ * It ignores any recursive type, so it cannot do anything with lists. It would be much more useful if it could do some best-effort thing here as well.
 
 If someone wants to pick it up from here, that’d be great!
 
