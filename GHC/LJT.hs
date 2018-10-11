@@ -18,6 +18,7 @@ import TysWiredIn
 import BasicTypes
 import NameEnv
 import NameSet
+import Coercion
 
 import Data.List
 import Data.Hashable
@@ -207,6 +208,15 @@ isRecTyCon tc = go emptyNameSet tc
         go (CoercionTy co)   = emptyNameEnv
         go_s = foldr (plusNameEnv . go) emptyNameEnv
 
+
+
+-- A copy from MkId.hs, no longer exported there :-(
+wrapNewTypeBody :: TyCon -> [Type] -> CoreExpr -> CoreExpr
+wrapNewTypeBody tycon args result_expr
+  = wrapFamInstBody tycon args $
+    mkCast result_expr (mkSymCo co)
+  where
+    co = mkUnbranchedAxInstCo Representational (newTyConCo tycon) args []
 
 -- Combinators to search for matching things
 
