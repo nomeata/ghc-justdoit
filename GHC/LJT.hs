@@ -1,24 +1,10 @@
 -- | An implementation of LJT proof search directly on Core terms.
 module GHC.LJT where
 
-import FastString
-import Unique
-import Type
-import Id
-import Var
-import CoreSyn
-import Outputable
-import TyCoRep
-import TyCon
-import DataCon
-import MkCore
-import MkId
-import CoreUtils
-import TysWiredIn
-import BasicTypes
-import NameEnv
-import NameSet
-import Coercion
+import GHC.Plugins
+import GHC.Core.TyCo.Rep
+import GHC.Types.Id.Make
+import GHC.Types.Unique
 
 import Data.List
 import Data.Hashable
@@ -40,7 +26,7 @@ ante ==> goal
 -- Rule f⇒
 ante ==> goal
     | Just v <- find (\v -> isEmptyTy (idType v)) ante
-    = pure $ mkWildCase (Var v) (idType v) goal []
+    = pure $ mkWildCase (Var v) (unrestricted (idType v)) goal []
 
 -- Rule →⇒2
 ante ==> goal
@@ -74,7 +60,7 @@ ante ==> goal
       destruct (Var vAorB) vs <$> sequence [ (v:ante') ==> goal | v <- vs]
 
 -- Rule ⇒→
-ante ==> FunTy t1 t2
+ante ==> FunTy _af _mult t1 t2
     = Lam v <$> (v : ante) ==> t2
   where
     v = newVar t1
@@ -96,7 +82,7 @@ ante ==> goal
     | Just ((vABC, ((a,b),_)), ante') <- anyA (funLeft (funLeft Just)) ante
     = do
         let eBC = lam b $ \vB -> App (Var vABC) (lam a $ \_ -> Var vB)
-        eAB <- letA eBC           $ \vBC -> (vBC : ante') ==> FunTy a b
+        eAB <- letA eBC           $ \vBC -> (vBC : ante') ==> FunTy VisArg Many a b
         letA (App (Var vABC) eAB) $ \vC  -> (vC : ante') ==> goal
 
 -- Nothing found :-(
@@ -107,7 +93,7 @@ _ante ==> _goal
 -- Smart constructors
 
 newVar :: Type -> Id
-newVar ty = mkSysLocal (mkFastString "x") (mkBuiltinUnique i) ty
+newVar ty = mkSysLocal (mkFastString "x") (mkBuiltinUnique i) Many ty
   where i = hash (showSDocUnsafe (ppr ty))
   -- We don’t mind if variables with equal types shadow each other,
   -- so let’s just derive the unique from the type
@@ -136,16 +122,17 @@ letsA es gen = mkLets (zipWith NonRec vs es) <$> gen vs
 
 isProdType :: Type -> Maybe ([Type], [CoreExpr] -> CoreExpr, CoreExpr -> [Id] -> CoreExpr -> CoreExpr)
 isProdType ty
-    | Just (tc, _, dc, repargs) <- splitDataProductType_maybe ty
+    | Just (tc, _, dc, repargs') <- splitDataProductType_maybe ty
+    , let repargs = map scaledThing repargs'
     , not (isRecTyCon tc)
     = Just ( repargs
            , \args -> mkConApp dc (map Type repargs ++ args)
-           , \scrut pats rhs -> mkWildCase scrut ty (exprType rhs) [(DataAlt dc, pats, rhs)]
+           , \scrut pats rhs -> mkWildCase scrut (unrestricted ty) (exprType rhs) [(DataAlt dc, pats, rhs)]
            )
     | Just (tc, ty_args) <- splitTyConApp_maybe ty
     , Just dc <- newTyConDataCon_maybe tc
     , not (isRecTyCon tc)
-    , let repargs = dataConInstArgTys dc ty_args
+    , let repargs = map scaledThing $ dataConInstArgTys dc ty_args
     = Just ( repargs
            , \[arg] -> wrapNewTypeBody tc ty_args arg
            , \scrut [pat] rhs ->
@@ -160,17 +147,17 @@ isSumType ty
     | Just (tc, ty_args) <- splitTyConApp_maybe ty
     , Just dcs <- isDataSumTyCon_maybe tc
     , not (isRecTyCon tc)
-    = let tys = [ mkTupleTy Boxed (dataConInstArgTys dc ty_args) | dc <- dcs ]
+    = let tys = [ mkTupleTy Boxed (map scaledThing (dataConInstArgTys dc ty_args)) | dc <- dcs ]
           injs = [
             let vtys = dataConInstArgTys dc ty_args
-                vs = map newVar vtys
+                vs = map (newVar . scaledThing) vtys
             in \ e -> mkSmallTupleCase vs (mkConApp dc (map Type ty_args ++ map Var vs))
-                        (mkWildValBinder (exprType e)) e
+                        (mkWildValBinder Many (exprType e)) e
            | dc <- dcs]
           destruct = \e vs alts ->
-            Case e (mkWildValBinder (exprType e)) (exprType (head alts)) 
-            [ let pats = map newVar (dataConInstArgTys dc ty_args) in
-              (DataAlt dc, pats, mkLetNonRec v (mkCoreVarTup pats) rhs)
+            Case e (mkWildValBinder Many (exprType e)) (exprType (head alts))
+            [ let pats = map (newVar . scaledThing) (dataConInstArgTys dc ty_args) in
+              (DataAlt dc, pats, mkLetNonRec v (mkCoreTup (map Var pats)) rhs)
             | (dc,v,rhs) <- zip3 dcs vs alts ]
       in Just (tys, injs, destruct)
 isSumType _ = Nothing
@@ -188,7 +175,11 @@ isRecTyCon tc = go emptyNameSet tc
                | any isHigherKind paramKinds     = False
                | any (go seen') mentionedTyCons  = True
                | otherwise                       = False
-      where mentionedTyCons = concatMap getTyCons $ concatMap dataConOrigArgTys $ tyConDataCons tc
+      where mentionedTyCons =
+                concatMap getTyCons $
+                map scaledThing $
+                concatMap dataConOrigArgTys $
+                tyConDataCons tc
             paramKinds = map varType (tyConTyVars tc)
             seen' = seen `extendNameSet` tyConName tc
 
@@ -202,7 +193,7 @@ isRecTyCon tc = go emptyNameSet tc
         go (LitTy _)         = emptyNameEnv
         go (TyVarTy _)       = emptyNameEnv
         go (AppTy a b)       = go a `plusNameEnv` go b
-        go (FunTy a b)       = go a `plusNameEnv` go b
+        go (FunTy _ _ a b)   = go a `plusNameEnv` go b
         go (ForAllTy _ ty)   = go ty
         go (CastTy ty _)     = go ty
         go (CoercionTy co)   = emptyNameEnv
@@ -221,7 +212,7 @@ wrapNewTypeBody tycon args result_expr
 -- Combinators to search for matching things
 
 funLeft :: (Type -> Maybe a) -> Type -> Maybe (a,Type)
-funLeft p (FunTy t1 t2) = (\x -> (x,t2)) <$> p t1
+funLeft p (FunTy _af _mult t1 t2) = (\x -> (x,t2)) <$> p t1
 funLeft _ _ = Nothing
 
 anyA :: (Type -> Maybe a) -> [Id] -> Maybe ((Id, a), [Id])

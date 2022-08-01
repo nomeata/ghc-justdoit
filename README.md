@@ -22,6 +22,7 @@ Missing bits
  * The implementation is very much unoptimized.
  * It returns one solution, but not necessary the “best” one. But what is the “best” one?
  * It ignores any recursive type, so it cannot do anything with lists. It would be much more useful if it could do some best-effort thing here as well.
+ * It ignores linear types, and will likely produce ill-typed expressions for them.
 
 If someone wants to pick it up from here, that’d be great!
 

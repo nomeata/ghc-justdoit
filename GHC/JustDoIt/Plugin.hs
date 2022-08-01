@@ -1,24 +1,19 @@
 {-# LANGUAGE CPP, TupleSections #-}
-module GHC.JustDoIt.Plugin ( plugin )
-where
+module GHC.JustDoIt.Plugin ( plugin ) where
 
 -- external
 import Data.Maybe
 import Control.Monad
 
 -- GHC API
-import Module     (mkModuleName)
-import OccName    (mkTcOcc)
-import Plugins    (Plugin (..), defaultPlugin)
-import TcEvidence
-import TcPluginM
-import TcRnTypes
-import Class
-import CoreUtils
-import MkCore
-import TyCon
-import Type
-import CoreSyn
+import GHC.Unit.Module.Name (mkModuleName)
+import GHC.Plugins hiding (TcPlugin)
+import GHC.Tc.Types
+import GHC.Tc.Types.Constraint
+import GHC.Tc.Plugin
+import GHC.Core.Class
+import GHC.Tc.Types.Evidence
+import GHC.Core.Predicate
 
 import GHC.JustDoIt.Solver
 

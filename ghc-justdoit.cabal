@@ -1,5 +1,5 @@
 name:                ghc-justdoit
-version:             0.1.0.1
+version:             0.1.0.2
 synopsis:            A magic typeclass that just does it
 description:
     This plugin allows you to write
@@ -29,16 +29,16 @@ category:            Language
 build-type:          Simple
 extra-source-files:  ChangeLog.md, README.md
 cabal-version:       >=1.10
-tested-with:         GHC ==8.6.*, GHC ==8.7.*
+tested-with:         GHC ==9.0.*
 
 library
   exposed-modules:     GHC.LJT
   exposed-modules:     GHC.JustDoIt
   exposed-modules:     GHC.JustDoIt.Plugin
   exposed-modules:     GHC.JustDoIt.Solver
-  build-depends:       base >=4.11 && <4.14
+  build-depends:       base >=4.15 && <4.16
   build-depends:       hashable
-  build-depends:       ghc >=8.5
+  build-depends:       ghc >=9.0
   default-language:    Haskell2010
 
 test-suite demo
